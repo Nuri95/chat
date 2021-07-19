@@ -40,14 +40,13 @@ class Socket:
     sock = None
 
     def __init__(self):
-        self.port = 5000
-        self.header_length = 10
+        self.port = 5002
+        self.header_length = 9
         self.ip = socket.gethostname()
         self.onMessage = EventHook()
 
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((self.ip, self.port))
-        # client_socket.setblocking(False)
         self.sock = client_socket
 
     def start(self):
@@ -57,17 +56,19 @@ class Socket:
     def listen_messages(self):
         while True:
             header = self.sock.recv(self.header_length)
-            print(header)
             if not len(header):
                 sys.exit()
-            # t = 1
-            payload = b'123123'
-            # if t == Message.TYPE:
-            #     msg = Message.deserialize(payload)
-            #     self.onMessage.emit(msg)
+
+            len_message, type_message = struct.unpack('LB', header)
+            payload = self.sock.recv(len_message)
+            answer_server = Message.deserialize(payload)
+            print('Сервер ответил', answer_server)
+
+            self.onMessage.emit(answer_server)
 
     def send(self, package):
         bytes = package.serialize()
+        print('отправляем байты на сервер')
         self.sock.send(struct.pack('LB', len(bytes), package.TYPE)+bytes)
 
 
@@ -80,6 +81,7 @@ class User:
         print('New msg: ' + message.text)
 
     def start(self):
+        print('Введите сообщение:')
         msg = input()
         s.send(Message(msg))
         pass
@@ -90,6 +92,6 @@ socket_thread = threading.Thread(target=s.start)
 user_thread = threading.Thread(target=User(s).start)
 socket_thread.start()
 user_thread.start()
-# user_thread.join()
-# socket_thread.join()
+user_thread.join()
+socket_thread.join()
 
