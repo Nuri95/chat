@@ -1,97 +1,51 @@
-import socket
-import struct
-import sys
-import threading
+from signal import signal
+from threading import Thread
+
+from networking.message import Message
+from networking.remote_socket import RemoteSocket
 
 
-class EventHook(object):
+class ReceivingThread(Thread):
+    def __init__(self, socket: RemoteSocket):
+        self.socket = socket
+        super().__init__()
+        self.daemon = True
 
-    def __init__(self):
-        self.__handlers = []
+    def run(self):
+        try:
+            self.socket.listen_messages(self.on_message)
+        except Exception as e:
+            print(str(e))
 
-    def __iadd__(self, handler):
-        self.__handlers.append(handler)
-        return self
-
-    def __isub__(self, handler):
-        self.__handlers.remove(handler)
-        return self
-
-    def emit(self, *args, **keywargs):
-        for handler in self.__handlers:
-            handler(*args, **keywargs)
+    def on_message(self, msg: Message):
+        print('Получено сообщение ' + msg.text)
 
 
-class Message:
-    TYPE = 1
+class InterfaceThread(Thread):
+    def __init__(self, socket: RemoteSocket):
+        self.socket = socket
+        super().__init__()
+        self.daemon = True
 
-    def __init__(self, text: str):
-        self.text = text
-
-    def serialize(self):
-        return self.text.encode('utf-8')
-
-    @staticmethod
-    def deserialize(payload):
-        return Message(payload.decode('utf-8'))
-
-
-class Socket:
-    sock = None
-
-    def __init__(self):
-        self.port = 5002
-        self.header_length = 9
-        self.ip = socket.gethostname()
-        self.onMessage = EventHook()
-
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.connect((self.ip, self.port))
-        self.sock = client_socket
-
-    def start(self):
-        print('Start Client')
-        self.listen_messages()
-
-    def listen_messages(self):
-        while True:
-            header = self.sock.recv(self.header_length)
-            if not len(header):
-                sys.exit()
-
-            len_message, type_message = struct.unpack('LB', header)
-            payload = self.sock.recv(len_message)
-            answer_server = Message.deserialize(payload)
-            print('Сервер ответил', answer_server)
-
-            self.onMessage.emit(answer_server)
-
-    def send(self, package):
-        bytes = package.serialize()
-        print('отправляем байты на сервер')
-        self.sock.send(struct.pack('LB', len(bytes), package.TYPE)+bytes)
+    def run(self):
+        try:
+            while True:
+                msg = input()
+                self.socket.send(Message(msg))
+                print('Отправлено сообщение ' + msg)
+        except Exception as e:
+            print(str(e))
 
 
-class User:
-    def __init__(self, s: Socket):
-        s.onMessage += self.onMessage
-        self.s = s
+remote_socket = RemoteSocket()
+receiver = ReceivingThread(remote_socket)
+interface = InterfaceThread(remote_socket)
 
-    def onMessage(self, message: Message):
-        print('New msg: ' + message.text)
+receiver.start()
+interface.start()
 
-    def start(self):
-        print('Введите сообщение:')
-        msg = input()
-        s.send(Message(msg))
-        pass
+receiver.join()
+signal()
 
-
-s = Socket()
-socket_thread = threading.Thread(target=s.start)
-user_thread = threading.Thread(target=User(s).start)
-socket_thread.start()
-user_thread.start()
-user_thread.join()
-socket_thread.join()
+interface.join()
 

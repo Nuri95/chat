@@ -1,63 +1,48 @@
-import socket
-import struct
+from threading import Thread
+
+from networking.message import Message
+from networking.message_socket import MessageSocket
+from networking.server_socket import ServerSocket
 
 
-class Message:
-    TYPE = 1
+class AcceptConnectionThread(Thread):
+    def __init__(self, server: ServerSocket):
+        self.server_socket = server
+        super().__init__()
+        self.daemon = True
 
-    def __init__(self, text: str):
-        self.text = text
+    def run(self):
+        try:
+            self.server_socket.listen_connections(self.on_connect)
+        except Exception as e:
+            print(str(e))
 
-    def serialize(self):
-        return self.text.encode('utf-8')
-
-    @staticmethod
-    def deserialize(payload):
-        return Message(payload.decode('utf-8'))
-
-
-class Socket:
-    def __init__(self):
-        ip, port = socket.gethostname(), 5002
-        self.header_length = 9
-        self.message_byte = self.header_length + 1024
-
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.bind((ip, port))
-        self.sock.listen(5)
-        self.clients = []
-
-    def start(self):
-        print('Start Server')
-        self.listen_message()
-
-    def receive_message(self, client_socket):
-        message_header = client_socket.recv(self.header_length)
-
-        if not len(message_header):
-            return False
-
-        len_message, type_message = struct.unpack('LB', message_header)
-        payload = client_socket.recv(len_message)
-        return Message.deserialize(payload)
-
-    def send(self, package, client_socket):
-        bytes = package.serialize()
-        client_socket.send(struct.pack('LB', len(bytes), package.TYPE)+bytes)
-
-    def listen_message(self):
-        while True:
-            client_socket, client_addres = self.sock.accept()
-            data = self.receive_message(client_socket)
-
-            if not data:
-                continue
-
-            if client_addres not in self.clients:
-                self.clients.append(client_addres)
-
-            self.send(data, client_socket)
+    def on_connect(self, connection: MessageSocket):
+        print('Получена новая коннекция' + connection.get_name())
+        handle_connection = HandleConnectionThread(connection)
+        handle_connection.start()
+        # TODO сохранить порожденные потоки чтобы потом над всеми сделать join
 
 
-s = Socket()
+class HandleConnectionThread(Thread):
+    def __init__(self, connection: MessageSocket):
+        self.connection = connection
+        super().__init__()
+        self.daemon = True
+
+    def run(self):
+        try:
+            self.connection.listen_messages(self.on_message)
+        except Exception as e:
+            print(str(e))
+
+    def on_message(self, msg: Message):
+        return_message = Message(msg.text)
+        print(f'Из соединения {self.connection.get_name()} получено сообщение {return_message.text}')
+        self.connection.send(return_message)
+
+
+server_socket = ServerSocket()
+s = AcceptConnectionThread(server_socket)
 s.start()
+s.join()
