@@ -2,13 +2,14 @@ import struct
 import sys
 from socket import socket
 
-from networking.message import Message
+from networking.message import deserializers, IMessage
 
 
 class MessageSocket:
     def __init__(self, sock: socket):
         self.sock = sock
         self.header_length = 9
+        self.data = {}
 
     def listen_messages(self, on_message):
         while True:
@@ -18,12 +19,15 @@ class MessageSocket:
 
             len_message, type_message = struct.unpack('LB', header)
             payload = self.sock.recv(len_message)
+            try:
+                message = deserializers[type_message](payload)
+            except KeyError:
+                self.sock.close()
+                break
+            else:
+                on_message(message)
 
-            message = Message.deserialize(payload)
-            # TODO декодировать не только message, в on_message принимать не только message
-            on_message(message)
-
-    def send(self, message: Message):
+    def send(self, message: IMessage):
         bytes = message.serialize()
         print('отправляем байты на сервер')
         self.sock.send(struct.pack('LB', len(bytes), message.message_type) + bytes)
