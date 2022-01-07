@@ -1,4 +1,3 @@
-from signal import signal
 from threading import Thread
 
 from networking.message import Message, MessageWelcome

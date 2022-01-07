@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class IMessage(ABC):
+class BaseMessage(ABC):
     @property
     @abstractmethod
     def message_type(self):
@@ -12,7 +12,7 @@ class IMessage(ABC):
         raise NotImplemented
 
 
-class Message(IMessage):
+class Message(BaseMessage):
     message_type = 1
 
     def __init__(self, text: str):
@@ -26,7 +26,7 @@ class Message(IMessage):
         return Message(payload.decode('utf-8'))
 
 
-class MessageWelcome(IMessage):
+class MessageWelcome(BaseMessage):
     message_type = 2
 
     def __init__(self, name: str):

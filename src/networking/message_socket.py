@@ -2,7 +2,7 @@ import struct
 import sys
 from socket import socket
 
-from networking.message import deserializers, IMessage
+from networking.message import deserializers, BaseMessage
 
 
 class MessageSocket:
@@ -27,9 +27,8 @@ class MessageSocket:
             else:
                 on_message(message)
 
-    def send(self, message: IMessage):
+    def send(self, message: BaseMessage):
         bytes = message.serialize()
-        print('отправляем байты на сервер')
         self.sock.send(struct.pack('LB', len(bytes), message.message_type) + bytes)
 
     def get_name(self) -> str:
