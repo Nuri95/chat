@@ -16,6 +16,9 @@ class Connections:
         if connection not in self.connections:
             self.connections.append(connection)
 
+    def send(self, message: Message):
+        for connection in self.connections:
+            connection.send(message)
 
 class AcceptConnectionThread(Thread):
     def __init__(self, server: ServerSocket):
@@ -49,7 +52,7 @@ class HandleConnectionThread(Thread):
             MessageWelcome.message_type: self.on_welcome,
             Message.message_type: self.on_message,
         }
-        self.connections = connections.get_connections()
+        self.connections = connections
 
     def run(self):
         try:
@@ -67,9 +70,7 @@ class HandleConnectionThread(Thread):
     def on_message(self, msg: Message):
         name = self.connection.data.get('name') or self.connection.get_name()
         return_message = Message(msg.text)
-        print(self.connections)
-        for connection in self.connections:
-            connection.send(return_message)
+        self.connections.send(return_message)
 
         print(f'{name}: {return_message.text}')
 
