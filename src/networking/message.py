@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 print(2)
+print(3)
 class BaseMessage(ABC):
     @property
     @abstractmethod
