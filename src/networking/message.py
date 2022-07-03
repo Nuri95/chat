@@ -5,6 +5,7 @@ print(2)
 print(3)
 print(4)
 print('new main')
+print('new test')
 class BaseMessage(ABC):
     @property
     @abstractmethod
