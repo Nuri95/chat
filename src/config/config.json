@@ -1,0 +1,8 @@
+{
+  "db": {
+    "dbname": "chat",
+    "user": "postgres",
+    "password": "pass",
+    "host": "192.168.64.3"
+  }
+}
