@@ -1,21 +1,31 @@
 import struct
-import sys
-from socket import socket
+import socket
+import threading
 
 from networking.message import deserializers, BaseMessage
 
 
 class MessageSocket:
-    def __init__(self, sock: socket):
+    def __init__(self, sock: socket, is_stopped: threading.Event):
+        self.is_stopped = is_stopped
         self.sock = sock
+        self.sock.settimeout(0.2)
         self.header_length = 9
         self.data = {}
 
     def listen_messages(self, on_message):
         while True:
-            header = self.sock.recv(self.header_length)
+            try:
+                header = self.sock.recv(self.header_length)
+            except socket.timeout:
+                if self.is_stopped.is_set():
+                    self.sock.close()
+                    return
+                continue
+
             if not len(header):
-                sys.exit()
+                self.sock.close()
+                break
 
             len_message, type_message = struct.unpack('LB', header)
             payload = self.sock.recv(len_message)
